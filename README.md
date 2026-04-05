@@ -1,48 +1,71 @@
 ## REST Assured — библиотека для тестирования HTTP/REST API на Java.
 
-### Стек технологий
-- **Java 11+**
-- **REST Assured** — DSL для тестирования REST сервисов.
-- **JUnit 5** — фреймворк для написания тестов.
-- **Jackson** — библиотека для сериализации/десериализации JSON.
-- **Gradle** — система сборки.
+Проект содержит примеры использования библиотеки **REST Assured** для автоматизации тестирования RESTful сервисов на примере API [JSONPlaceholder](https://jsonplaceholder.typicode.com/).
 
 ## Как запустить тесты
-   ```bash
-   ./gradlew test
-   ```
+Для запуска всех тестов выполните команду:
+```bash
+./gradlew test
+```
+Отчеты о тестировании будут доступны в папке `build/reports/tests/test/index.html`.
 
 ## Структура проекта
-- `SampleTest.java` — пример теста с использованием **Request/Response Specifications**.
-- `build.gradle` — конфигурация зависимостей.
+Проект организован по пакетам в `src/test/java/ru/gulash/restassured/`:
+
+- `SimpleTest.java` — базовые примеры GET-запросов, использование `pathParam`, `queryParam` и логирования.
+- `WithSpecTest.java` — использование **Request/Response Specifications** для переиспользования конфигураций.
+- `PojoTest.java` — примеры десериализации (преобразования) JSON-ответа в Java-объекты (POJO).
+- `ExtractionTest.java` — способы извлечения данных из тела ответа (JsonPath, Response object).
+- `models/` — пакет с POJO-классами (`User`, `Address`, `Company`, `Geo`), описывающими структуру данных API.
 
 ## Ключевые концепции
 
-### Request & Response Specifications
-Для того чтобы не повторять настройки (Base URI, Headers) в каждом тесте, мы используем:
-- **`RequestSpecBuilder`**: Позволяет один раз описать все общие параметры запроса (Base URI, заголовки, авторизацию, параметры запроса).
-- **`ResponseSpecBuilder`**: Позволяет собрать повторяющиеся проверки (Status Code, Content-Type).
+### 1. Request & Response Specifications
+Для исключения дублирования настроек (Base URI, Headers) используются спецификации:
+- **`RequestSpecification`**: общие параметры запроса (Base URI, Content-Type, Auth).
+- **`ResponseSpecification`**: общие проверки ответа (Status Code, Content-Type).
 
-**Пример из `SampleTest.java`**:
+**Пример (`WithSpecTest.java`)**:
 ```java
-// Настройка спецификаций
-requestSpec = new RequestSpecBuilder().setBaseUri("...").build();
-responseSpec = new ResponseSpecBuilder().expectStatusCode(200).build();
+requestSpec = new RequestSpecBuilder()
+    .setBaseUri("https://jsonplaceholder.typicode.com")
+    .setContentType(ContentType.JSON)
+    .build();
 
-// Использование в тесте
-given().spec(requestSpec).when().get("/users/1").then().spec(responseSpec);
+given().spec(requestSpec).when().get("/users/1").then().statusCode(200);
+```
+
+### 2. Работа с POJO (Jackson)
+REST Assured автоматически преобразует JSON в Java-объекты и обратно, если в проекте есть Jackson/Gson.
+
+**Пример (`PojoTest.java`)**:
+```java
+User user = given()
+    .when().get("/users/1")
+    .then().extract().as(User.class);
+
+System.out.println(user.getName()); // Leanne Graham
+```
+
+### 3. Извлечение данных (Extraction)
+Если нужно получить конкретное значение из ответа для использования в следующих тестах:
+
+**Пример (`ExtractionTest.java`)**:
+```java
+String email = given()
+    .when().get("/users/1")
+    .then().extract().path("email");
 ```
 
 ## Best Practices (Лучшие практики)
 
-1.  **Использование POJO**: Вместо передачи JSON строкой или через `Map`, создавайте Java-классы (Plain Old Java Objects). REST Assured автоматически превратит их в JSON с помощью Jackson.
-2.  **Request/Response Specifications**: Выносите повторяющиеся настройки (Base URI, Headers, Auth) в `RequestSpecBuilder`, а общие проверки (StatusCode, Content-Type) в `ResponseSpecBuilder`.
-3.  **Логирование при ошибках**: Используйте `.log().ifValidationFails()`, чтобы консоль не засорялась лишней информацией при успешных тестах, но давала полные данные при падениях.
-4.  **Разделение логики**: Используйте паттерн **Page Object** (или **Steps/Service Object**) для описания эндпоинтов, отделяя логику запросов от логики самих тестов.
-5.  **Hamcrest Matchers**: Активно используйте матчеры (`equalTo`, `hasItem`, `notNullValue`) для гибких проверок тела ответа.
+1.  **Использование POJO**: Создавайте Java-классы для сущностей. Это делает тесты более читаемыми и устойчивыми к изменениям в JSON.
+2.  **Спецификации (Specifications)**: Выносите общие настройки в `BeforeAll` или отдельные классы конфигурации.
+3.  **Логирование при ошибках**: Используйте `.log().ifValidationFails()` в `BeforeAll` или в цепочке вызовов, чтобы видеть детали запроса/ответа только при падении теста.
+4.  **Hamcrest Matchers**: Используйте матчеры (`equalTo`, `hasItem`, `hasSize`, `everyItem`) для декларативных проверок.
+5.  **Разделение логики**: В больших проектах используйте паттерн **Steps/Service Object** для описания эндпоинтов отдельно от тестовых сценариев.
 
-## Подводные камни
-
-1.  **Конфликты версий**: REST Assured тянет свои версии Groovy и Jackson. Если в проекте используются другие версии этих библиотек, могут возникнуть `NoSuchMethodError`. Решается через `exclude` в блоке dependencies или через `Platform/EnforcedPlatform`.
-2.  **GPath vs JSON Path**: Синтаксис `body("field.subfield", ...)` использует GPath. Будьте внимательны при работе со списками — GPath позволяет делать мощные выборки (например, `find { it.id == 1 }.name`), но синтаксис отличается от стандартного JSONPath.
-3.  **Кодировка**: Иногда REST Assured может некорректно определять кодировку ответа. Если в теле ответа "кракозябры", попробуйте явно указать `.config(RestAssuredConfig.config().encoderConfig(encoderConfig().defaultContentCharset("UTF-8")))`.
+## Полезные ссылки
+- [Официальная документация REST Assured](https://github.com/rest-assured/rest-assured/wiki/Usage)
+- [Hamcrest Matchers Guide](http://hamcrest.org/JavaHamcrest/tutorial)
+- [JSONPlaceholder API](https://jsonplaceholder.typicode.com/)
