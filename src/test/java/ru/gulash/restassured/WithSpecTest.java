@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 
 public class WithSpecTest {
 
@@ -50,5 +50,19 @@ public class WithSpecTest {
             .spec(responseSpec) // Применяем общие проверки ответа
             .body("username", equalTo("Bret"))
             .body("email", equalTo("Sincere@april.biz"));
+    }
+
+    @Test
+    @DisplayName("Проверка фильтрации комментариев по postId")
+    public void testGetCommentsByPostId() {
+        given()
+            .spec(requestSpec)
+            .queryParam("postId", 1) // Параметр фильтрации ?postId=1
+        .when()
+            .get("/comments")
+        .then()
+            .spec(responseSpec)
+            .body("postId", everyItem(equalTo(1))) // Проверяем, что все элементы в массиве имеют postId = 1
+            .body("", hasSize(greaterThan(0)));
     }
 }

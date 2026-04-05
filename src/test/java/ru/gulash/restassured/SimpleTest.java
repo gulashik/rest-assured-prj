@@ -56,5 +56,22 @@ public class SimpleTest {
         System.out.println("=====================/n");
 
     }
+    @Test
+    @DisplayName("Проверка получения постов пользователя по userId (queryParam)")
+    public void testGetPostsByUser() {
+        System.out.println("=====================/n");
+        given()
+            .baseUri("https://jsonplaceholder.typicode.com")
+            .queryParam("userId", 1) // Передаем параметры запроса ?userId=1
+        .when()
+            .log().all()
+            .get("/posts")
+        .then()
+            .log().body()
+            .statusCode(200)
+            .body("[0].userId", equalTo(1)); // Проверяем, что в ответе (массив) у первого элемента userId = 1
+        System.out.println("=====================/n");
+    }
+
 }
 
