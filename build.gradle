@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+}
+
+group 'ru.gulash'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Основная библиотека REST Assured для тестирования REST API
+    testImplementation 'io.rest-assured:rest-assured:5.4.0'
+
+    // Библиотека для работы с JSON-данными (сериализация/десериализация POJO через Jackson)
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
+
+    // JUnit 5
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    // Лаунчер JUnit Platform для запуска тестов через Gradle или IDE
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
